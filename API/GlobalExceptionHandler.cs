@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Localization;
-using TaskAggregator.API.Resources.Localization.ErrorMessages;
 using TaskAggregator.API.Services;
 using TaskAggregator.Shared;
 
@@ -19,7 +17,6 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
     public GlobalExceptionHandler(
         IProblemDetailsService problemDetails,
         ILogger<GlobalExceptionHandler> logger,
-        IStringLocalizer<ErrorMessagesResource> localizer,
         LocalizationService localizationSvc,
         IHostEnvironment env)
     {

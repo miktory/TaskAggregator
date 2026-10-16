@@ -47,10 +47,11 @@ if (env.IsDevelopment())
     app.MapOpenApi().WithDocumentPerVersion();
     app.MapScalarApiReference();
 }
-
-app.UseExceptionHandler();
-app.UseStatusCodePages(); 
+// It's important that the localization middleware is added 
+// before the exception handling middleware; otherwise, you won't see the messages in the appropriate language.
 app.UseRequestLocalization();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseStaticFiles();
 app.UseRouting();
 app.MapHealthChecks("/status");

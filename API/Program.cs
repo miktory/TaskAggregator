@@ -49,6 +49,7 @@ if (env.IsDevelopment())
 }
 
 app.UseExceptionHandler();
+app.UseStatusCodePages(); 
 app.UseRequestLocalization();
 app.UseStaticFiles();
 app.UseRouting();

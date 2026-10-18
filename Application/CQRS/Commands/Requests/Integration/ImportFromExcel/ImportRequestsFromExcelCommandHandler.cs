@@ -1,5 +1,6 @@
 using System.Globalization;
 using Mediator;
+using Microsoft.Extensions.Logging;
 using TaskAggregator.Application.Abstractions.Ports;
 using TaskAggregator.Application.Exceptions;
 using TaskAggregator.Application.ExternalSystems.Excel;
@@ -18,14 +19,16 @@ public sealed class ImportRequestsFromExcelCommandHandler
     private readonly IRequestRepository _rRepo;
     private readonly RequestManagementDomainService _dSvc;
     private readonly IExcelReader _excelReader;
+    private readonly ILogger<ImportRequestsFromExcelCommandHandler> _logger;
 
     public ImportRequestsFromExcelCommandHandler(
         IRequestSourceRepository rsRepo,
         IRequestRepository rRepo,
         IUnitOfWork unitOfWork,
         RequestManagementDomainService dSvc,
-        IExcelReader excelReader)
-        => (_rsRepo, _rRepo, _uow, _excelReader, _dSvc) = (rsRepo, rRepo, unitOfWork, excelReader, dSvc);
+        IExcelReader excelReader,
+        ILogger<ImportRequestsFromExcelCommandHandler> logger)
+        => (_rsRepo, _rRepo, _uow, _excelReader, _dSvc, _logger) = (rsRepo, rRepo, unitOfWork, excelReader, dSvc, logger);
 
     private record ColumnFormat(ColumnType Type, bool ValueRequired, string ColumnName, long ColNum);
 
@@ -40,6 +43,7 @@ public sealed class ImportRequestsFromExcelCommandHandler
 
     public async ValueTask<Unit> Handle(ImportRequestsFromExcelCommand command, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("Import requests from excel file started.");
         var culture = CultureInfo.InvariantCulture;
 
         var headersParsed = false;
@@ -59,6 +63,7 @@ public sealed class ImportRequestsFromExcelCommandHandler
         await foreach (var row in _excelReader.ReadAsync(command.stream, cancellationToken))
         {
             var currRow = rowNum++;
+            _logger.LogInformation("Processing row {0}.", currRow);
             if (!headersParsed)
             {
                 headersActual = row.Select(c => c).ToArray();
@@ -74,6 +79,7 @@ public sealed class ImportRequestsFromExcelCommandHandler
                         throw new ExcelColumnValueIsInvalidException(colInfo.ColNum, currRow);
                 }
 
+                _logger.LogInformation("Headers parsed successfully.");
                 continue;
             }
 
@@ -114,6 +120,7 @@ public sealed class ImportRequestsFromExcelCommandHandler
                 var colInfo = colInfoByColType[colType];
                 if (colInfo.ValueRequired && string.IsNullOrEmpty(strVal))
                     throw new ExcelColumnValueIsInvalidException(colInfo.ColNum, currRow);
+                _logger.LogDebug("Parsed data: column number - {0}, column type - {1}, value - {2} .", colInfo.ColNum, colType, strVal);
             }
 
             var reqSourceExtId = res[ColumnType.RequestSourceExternalId] ?? string.Empty;
@@ -129,14 +136,16 @@ public sealed class ImportRequestsFromExcelCommandHandler
 
             await using (var transaction = await _uow.BeginTransactionAsync(cancellationToken: cancellationToken))
             {
-                // Если запрос существует - обновляем его           
+                // Если запрос существует - обновляем его       
                 if (request is not null)
                 {
+                    _logger.LogInformation("Request with external id {0} already exists within request source with external id {1}. Action: update.", extId, reqSourceExtId);
                     request.ChangeName(name);
                     request.ChangeDescription(description);
                 }
                 else
                 {
+                    _logger.LogInformation("Request with external id {0} not exists within request source with external id {1}. Action: create.", extId, reqSourceExtId);
                     var entity = await _dSvc.CreateRequestAsync(requestSource.Id, name, description, extId, cancellationToken);
                     await _rRepo.AddAsync(request: entity, cancellationToken: cancellationToken);
                 }
@@ -147,6 +156,7 @@ public sealed class ImportRequestsFromExcelCommandHandler
 
         }
 
+        _logger.LogInformation("Import requests from excel file finished.");
         return Unit.Value;
     }
 }

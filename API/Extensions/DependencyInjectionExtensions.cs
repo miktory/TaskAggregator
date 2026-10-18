@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Serilog;
 using TaskAggregator.API.ActionFilters.Async;
 using TaskAggregator.API.Services;
 using TaskAggregator.Application.Abstractions.Ports;
@@ -74,6 +75,13 @@ public static class DependencyInjectionExtensions
 
     public static IServiceCollection AddPresentation(this IServiceCollection services, IConfiguration configuration)
     {
+        //serilog
+        services.AddSerilog((services, lc) => lc
+            .ReadFrom.Configuration(configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+        );
+
         services
             .AddMvc(
                 o =>

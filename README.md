@@ -14,7 +14,7 @@
 Если заявка уже существует - данные **обновляются** актуальными значениями из файла.
 
 ## 2. Основные технологии, используемые в проекте
-ASP.NET Core (.NET 10), PostgreSQL 17, Mediator, Mapster, FluentValidation, Scalar, xUnit, Testcontainers
+ASP.NET Core (.NET 10), PostgreSQL 17, Mediator, Mapster, FluentValidation, Scalar, xUnit, Testcontainers, Serilog.
 
 ## 3. Описание слоёв Clean Architecture
 
@@ -221,24 +221,58 @@ API поддерживает версионирование. На данный �
 | Параметр | Назначение |
 |---|---|
 | `DatabaseConnection` | Секция настроек подключения к БД. Данные для подключения указываются в поле ConnectionString. Поле ConnectionString **обязательно** для заполнения. |
-| `Logging` | Стандартные настройки логирования ASP.NET Core. |
-| `AllowedHosts` | Стандартные настройки хостинга ASP.NET Core: `*` |
+| `Serilog` | Стандартные настройки логирования Serilog. |
+| `AllowedHosts` | Стандартные настройки хостинга ASP.NET Core. |
 
 ```json
 {
   "DatabaseConnection": {
     "ConnectionString": "Host=localhost;Port=5432;Database=taskaggregator;Username=postgres;Password=postgres"
   },
-  "Logging": {
-    "LogLevel": {
+  "Serilog": {
+    "MinimumLevel": {
       "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
+      "Override": {
+        "Microsoft.AspNetCore": "Warning",
+        "Microsoft.Hosting.Lifetime": "Information",
+        "Microsoft.EntityFrameworkCore.Database.Command": "Warning",
+        "System.Net.Http.HttpClient": "Warning"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "Console",
+        "Args": {
+          "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"
+        }
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "logs/app-log-.txt",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": 14,
+          "rollOnFileSizeLimit": true,
+          "fileSizeLimitBytes": 104857600,
+          "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"
+        }
+      }
+    ]
   },
   "AllowedHosts": "*"
 }
 ```
 
-## 10. Лицензия
+## 10. Логирование
+
+Используется Serilog. Лог запуска приложения (в том числе ранние ошибки) пишется в logs/bootstrap.log.
+Target'ы для основного лога настраиваются в конфигурационном файле.
+
+## 11. TODOs
+
+- `Dockerfile` + `docker-compose`
+- CI: `GitHub Actions` — сборка + запуск тестов
+
+## 12. Лицензия
 
 MIT — см. `LICENSE`. Список сторонних компонентов — `THIRD-PARTY-NOTICES.md`.
